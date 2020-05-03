@@ -1,9 +1,9 @@
 ---
 layout: post
-title: "Newton's square root"
+title: "Newton's square root method in Scheme"
 date: 2020-05-03
-categories: sicp math lisp scheme
 ---
+
 A scheme implementation of Newton's square root method from SICP 1.1.7.
 
 {% highlight scheme %}

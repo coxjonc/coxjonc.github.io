@@ -1,4 +1,10 @@
 <div class="header">
-	<h3>{{ site.title }}</h3>
-	<h4>{{ site.description }}</h4>
+	<h3>
+		<a href="/">{{ site.title }}</a>
+	</h3>
+	<h4>
+		By <a href="{{ "/about" | relative_url }}">
+			{{ site.author }}
+		</a>
+	</h4>
 </div>
