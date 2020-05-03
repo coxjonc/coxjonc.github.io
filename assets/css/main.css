@@ -8,9 +8,9 @@
     img {page-break-inside: avoid;}
     div.nosplit {page-break-inside: avoid;}
   }
-  img.center {
+  img {
     display: block;
-    margin: 0 auto;
+    width: 20em;
   }
   .pad {
     padding-top: 1em;
