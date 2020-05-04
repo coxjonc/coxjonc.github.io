@@ -47,7 +47,7 @@ This means that, before the interpreter calls a function, it evaluates the argum
 
 The problems start when the interpreter sees an expression like `(* (f x) (f x))`. It needs to evaluate the operands to figure out what numbers to multiple. First the interpreter computes `(f x)`. In the case of modular exponentiation, this could kick off a chain of recursive calls to `f`. Once all those recursive calls complete, the interpreter moves on to the second operand and computes the exact same value again.
 
-Using racket's built-in [`(trace)`](https://docs.racket-lang.org/reference/debugging.html) we can visualize these duplicate function calls. By calling `(trace f)` we can see when `f calls itself, giving us a good way to visualize the way the stack grows and shrinks as the process runs. Here is a trace of a call to `(expmod 2 3 5)`.
+Using racket's built-in [`(trace)`](https://docs.racket-lang.org/reference/debugging.html) we can visualize these duplicate function calls. By calling `(trace f)` we can see when `f` calls itself, giving us a good way to visualize the way the stack grows and shrinks as the process runs. Here is a trace of a call to `(expmod 2 3 5)`.
 
 ```
 >(expmod 2 3 5)
