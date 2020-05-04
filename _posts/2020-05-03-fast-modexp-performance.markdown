@@ -4,9 +4,9 @@ title: "How to slow down a fast program"
 date: 2020-05-03
 ---
 
-The following problem, from _Structure and Interpretation of Computer Programs_ (SICP), shows how a small change can wreck the performance of a fast program.
+The following problem, from _Structure and Interpretation of Computer Programs_ (SICP), shows how a small change can wreck the performance of a fast program. I like this problem because it forces you to think about the internals of the Lisp interpreter, and about the practical effects of trading a linear recursive algorithm for a tree-recursive one.
 
-Take a look at the following program for doing fast modular exponentiation. It calculates \\(b^e \bmod m\\) by repeatedly squaring \\(b\\) and taking the remainder of the intermediate results mod \\(m\\), with a little extra logic to handle odd exponents.
+The example program we'll consider computes a modular exponent - $b^e \bmod m$. It's written in a dialect of Scheme used in SICP. If you want to run it locally I recommend the [DrRacket IDE](https://racket-lang.org/). DrRacket has an [sicp language](https://docs.racket-lang.org/sicp-manual/) that you can install using the built-in package manager, as well as some utilities for tracing function calls, which will come in handy later.
 
 {% highlight scheme %}
 (define (expmod base exp m)
@@ -17,15 +17,17 @@ Take a look at the following program for doing fast modular exponentiation. It c
          (remainder (* base (expmod base (- exp 1) m)) m))))
 {% endhighlight %}
 
-Don't get too hung up on how the algorithm works - we're mostly interested in its running time. At each step of the recurrence, we split the input in half and do a constant time operation by calling `*` or `square`. Writing this all out as a recurrence relation we get:
+I won't go into detail about how this algorithm works, but you can read SICP section 1.2.6 for a more thorough explanation, and a motivation for why we want to do fast exponentiation in the first place. What we are concerned with here is not the correctness of this program, but its running time.
+
+To keep things simple, let's assume our input value $n$ is a power of two. At each step of the recurrence, we split the input in half and do a constant time operation. Writing this out as a recurrence relation we get:
 
 $$
-	T(n)= T(n/2) + O(1)
+T(n)= T(n/2) + O(1)
 $$
 
-This relation should look familiar - it's the same recurrence you get by recursively searching a binary tree, or any other operation that repeatedly halves its input. Like binary search, we have an overall time complexity of \\(log(n)\\).
+This relation should look familiar - it's the same recurrence you get by recursively searching a binary tree, or any other operation that repeatedly halves its input and does a constant-time operation on each step. Like binary search, we have an overall time complexity of $log(n)$.
 
-Now that we have a fast procedure, let's try slowing it way down.
+Now that we've defined our fast function, let's see how a small change slows it down.
 
 {% highlight scheme %}
 (define (slow-expmod base exp m)
@@ -37,47 +39,95 @@ Now that we have a fast procedure, let's try slowing it way down.
          (remainder (* base (slow-expmod base (- exp 1) m)) m))))
 {% endhighlight %}
 
-No big changes. We just removed the call to `square` and replaced it with a multiplication. Logically, this function does the exact same thing as the first function. If we run it on a small input, we may not even notice any difference. But if we pass this function a large exponent, something like `(slow-expmod 9 100000 5)` we'll realize that our once fast procedure has slowed to a crawl.
+No big changes. We just removed the call to `square` and explicitly multiplied the values. Logically, this function does the exact same thing as the first function, and it may not be immediately obvious why it should run slower. If we run it on a small input, we may not even notice any difference. But if we pass this function a large exponent we'll realize that our once fast procedure has slowed to a crawl.
 
-Why should `((f x) * (f x))` run more slowly than `(square (f x))`? To understand why, we first need to think about how the Scheme interpreter evaluates expressions. Lisp interpreters use _`applicative order evaluation`_. I'll let SICP define that term for us:
+Why should `((f x) * (f x))` run more slowly than `(square (f x))`? To understand why, we first need to think about how the interpreter evaluates expressions. Lisp interpreters use _`applicative order evaluation`_. I'll let SICP define that term for us:
 
-  > the interpreter first evaluates the operator and operands and then applies the resulting procedure to the resulting arguments.
+  > _The interpreter first evaluates the operator and operands and then applies the resulting procedure to the resulting arguments._
 
-This means that, before the interpreter calls a function, it evaluates the arguments to that function. When encounters an expression like `(square (f x))`, it evaluates `(f x)` just once, and gets a number to pass to `square`.
+This means that, before the interpreter calls a function, it evaluates the arguments to that function. When it encounters an expression like `(square (f x))`, it evaluates `(f x)`, and gets a number to pass to `square`. And when the interpreter sees an expression like `(* (f x) (f x))`, it evaluates `(f x)` not once, but twice.
 
-The problems start when the interpreter sees an expression like `(* (f x) (f x))`. It needs to evaluate the operands to figure out what numbers to multiple. First the interpreter computes `(f x)`. In the case of modular exponentiation, this could kick off a chain of recursive calls to `f`. Once all those recursive calls complete, the interpreter moves on to the second operand and computes the exact same value again.
+In the case of our recursive modular exponent function, each function call could kick off a long chain of recursive calls to `f`. Once all those recursive calls complete, the interpreter moves on to the second operand, and does that work all over again. An optimizing compiler would probably get rid of these duplicate function calls, but our interpreter blindly executes the same function again, repeating its work and crippling our performance.
 
-Using racket's built-in [`(trace)`](https://docs.racket-lang.org/reference/debugging.html) we can visualize these duplicate function calls. By calling `(trace f)` we can see when `f` calls itself, giving us a good way to visualize the way the stack grows and shrinks as the process runs. Here is a trace of a call to `(expmod 2 3 5)`.
-
-```
->(expmod 2 3 5)
-> (expmod 2 2 5)
-> >(expmod 2 1 5)
-> > (expmod 2 0 5)
-< < 1
-< <2
-< 4
-<3
-```
-
-We can see that `expmod` calls itself 3 times. Now let's see what `slow-expmod` does:
+Using racket's built-in [`(trace)`](https://docs.racket-lang.org/reference/debugging.html) we can visualize these duplicate function calls. Calling `(trace f)` tells the interpreter to keep track of when `f` is called, and what value it eventually returns. When a traced function calls another traced function, then that invocation is _nested_, making it easy to visualize the way the stack grows and shrinks as the process runs. Here is a trace of a call to `(expmod 2 8 5)`, using our fast $O(\log n)$ algorithm.
 
 ```
->(slow-expmod 2 3 5)
-> (slow-expmod 2 2 5)
-> >(slow-expmod 2 1 5)
-> > (slow-expmod 2 0 5)
-< < 1
-< <2
-> >(slow-expmod 2 1 5)
-> > (slow-expmod 2 0 5)
-< < 1
-< <2
-< 4
-<3
+>(expmod 2 8 5)
+> (expmod 2 4 5)
+> >(expmod 2 2 5)
+> > (expmod 2 1 5)
+> > >(expmod 2 0 5)
+< < <1
+< < 2
+< <4
+< 1
+<1
+1
 ```
 
-`slow-expmod` calls itself six times, with an extra call to `(slow-expmod 2 1 5)`. With such a tiny input these extra calls don't make a practical difference, but the difference becomes clear when you run it with much larger input. Now that we've seen this slowdown in practice, let's write it out as a formal recurrence relation. We know that `slow-expmod` calls itself twice, so we get:
+We can see that `expmod` calls itself 4 times. Now let's see what `slow-expmod` does on the same input:
+
+```
+>(slow-expmod 2 8 5)
+> (slow-expmod 2 4 5)
+> >(slow-expmod 2 2 5)
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+< <4
+> >(slow-expmod 2 2 5)
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+< <4
+< 1
+> (slow-expmod 2 4 5)
+> >(slow-expmod 2 2 5)
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+< <4
+> >(slow-expmod 2 2 5)
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+> > (slow-expmod 2 1 5)
+> > >(slow-expmod 2 0 5)
+< < <1
+< < 2
+< <4
+< 1
+<1
+1
+```
+
+Even on a small input, the difference is dramatic. `slow-expmod` calls itself 22 times, compared to `expmod`'s four times. With such a tiny input these extra calls don't change the running time of our procedure, but the difference becomes clear when you run it with much larger input. To test this, I wrote the following higher-order function that uses `runtime` to output the time elapsed, in microseconds, for the execution of `f`.
+
+{% highlight scheme %}
+(define (expmod start-time f base exp m)
+  (f base exp m)
+  (display (- (runtime) start-time)))
+{% endhighlight %}
+
+Calling this function on our slow and fast modular exponent programs, we see that the fast function takes about 5 µs to calculate $2^{10000} \bmod 5$, and the slow function takes about 2000 µs to calculate the same value. I'm not a statistician or a benchmarking expert,but even allowing for inaccuracies and variance in our timing function, that's a big difference.
+
+Now that we've seen the slowdown in practice, let's formalize it by writing out the recurrence for our slow function. We know that `slow-expmod` calls itself twice on every execution, so we have:
 
 $$
 T(x) = 2T(x/2) + O(1)
@@ -89,4 +139,14 @@ $$
 T(x) = O(1) * (2 + 2^2 + 2^3 + ... 2^{log_2n})
 $$
 
-It looks like this series is dominated by the last term, \\(2^{log_2n} = n\\), giving us an \\(O(n)\\) running time, much worse than our original algorithm.
+It looks like this series is dominated by the last term, $2^{log_2n} = n$, giving us an $O(n)$ running time, much worse than our original algorithm.
+
+The following diagram shows the explosive growth in the number of procedure calls, compared to our fast modular exponent function:
+
+![Diagram showing linear and recursive procedure call structure](/assets/img/linear-vs-recursive-modexp-perf.jpg)
+
+QA sites like StackOverflow are full of questions about this kind of thing - once-fast code that slowed down after a small change. It's easy to see these performance bugs as nothing more than a hassle, a complex system finding new and annoying ways to break.
+
+These bugs can be exciting, though, because they force you to learn something new about the internals of your language implementation, compiler, database, or runtime. A leaky abstraction, like a leaky boat, requires you to go below decks and figure out what the hell is going on.
+
+These bugs may be annoying and costly, but they are also a rare chance to check your assumptions about the tools you use every day.
