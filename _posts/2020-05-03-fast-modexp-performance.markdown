@@ -4,7 +4,7 @@ title: "How to slow down a fast program"
 date: 2020-05-03
 ---
 
-The following problem, from _Structure and Interpretation of Computer Programs_ (SICP), shows how a small change can wreck the performance of a fast program. I like this problem because it forces you to think about the internals of the Lisp interpreter, and about the practical effects of trading a linear recursive algorithm for a tree-recursive one.
+The following problem, from [_Structure and Interpretation of Computer Programs_](https://mitpress.mit.edu/sites/default/files/sicp/full-text/book/book.html) (SICP), shows how a small change can wreck the performance of a fast program. I like this problem because it forces you to think about the internals of the Lisp interpreter, and about the practical effects of trading a linear recursive algorithm for a tree-recursive one.
 
 The example program we'll consider computes a modular exponent - $b^e \bmod m$. It's written in a dialect of Scheme used in SICP. If you want to run it locally I recommend the [DrRacket IDE](https://racket-lang.org/). DrRacket has an [sicp language](https://docs.racket-lang.org/sicp-manual/) that you can install using the built-in package manager, as well as some utilities for tracing function calls, which will come in handy later.
 
