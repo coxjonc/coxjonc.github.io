@@ -125,28 +125,4 @@ Even on a small input, the difference is dramatic. `slow-expmod` calls itself 22
   (display (- (runtime) start-time)))
 {% endhighlight %}
 
-Calling this function on our slow and fast modular exponent programs, we see that the fast function takes about 5 µs to calculate $2^{10000} \bmod 5$, and the slow function takes about 2000 µs to calculate the same value. I'm not a statistician or a benchmarking expert,but even allowing for inaccuracies and variance in our timing function, that's a big difference.
-
-Now that we've seen the slowdown in practice, let's formalize it by writing out the recurrence for our slow function. We know that `slow-expmod` calls itself twice on every execution, so we have:
-
-$$
-T(x) = 2T(x/2) + O(1)
-$$
-
-Writing this recurrence out as a series makes it clear which term dominates.
-
-$$
-T(x) = O(1) * (2 + 2^2 + 2^3 + ... 2^{log_2n})
-$$
-
-It looks like this series is dominated by the last term, $2^{log_2n} = n$, giving us an $O(n)$ running time, much worse than our original algorithm.
-
-The following diagram shows the explosive growth in the number of procedure calls, compared to our fast modular exponent function:
-
-![Diagram showing linear and recursive procedure call structure](/assets/img/linear-vs-recursive-modexp-perf.jpg)
-
-QA sites like StackOverflow are full of questions about this kind of thing - once-fast code that slowed down after a small change. It's easy to see these performance bugs as nothing more than a hassle, a complex system finding new and annoying ways to break.
-
-These bugs can be exciting, though, because they force you to learn something new about the internals of your language implementation, compiler, database, or runtime. A leaky abstraction, like a leaky boat, requires you to go below decks and figure out what the hell is going on.
-
-These bugs may be annoying and costly, but they are also a rare chance to check your assumptions about the tools you use every day.
+Calling this function on our slow and fast modular exponent programs, we see that the fast function takes about 5 µs to calculate $2^{10000} \bmod 5$, and the slow function takes about 2000 µs to calculate the same value. Even allowing for inaccuracies and variance in our timing function, that's a significant difference.

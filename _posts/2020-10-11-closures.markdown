@@ -1,0 +1,36 @@
+---
+layout: post
+title: "Closures"
+date: 2020-10-11
+---
+Exercise 2.4 in _Structure and Interpretation of Computer Programs_ poses an interesting question - how can you store data without explicitly allocating memory for it using the [`cons`](https://en.wikipedia.org/wiki/Cons) builtin function? The exercise gives the following implementation of `cons` and `car`, and asks the reader to supply the implementation of `cdr`.
+
+{% highlight scheme %}
+(define (cons x y)
+  (lambda (m) (m x y)))
+
+(define (car z)
+  (z (lambda (x y) x)))
+
+(define (cdr z)
+  (z (lambda (x y) y)))
+
+(cdr (cons 3 4)) ; returns 4
+{% endhighlight %}
+
+This implementation of `cons` doesn't explicitly allocate any memory for `x` and `y`. Instead, it uses the lambda special form to return a closure that you can use to retrieve those values later. This is an important distinction - our `cons` does not return a function. It returns a closure - something that "closes" around the state visible to the function when it was declared.
+
+Almost all popular languages today support closures. Rust supports not one but three different types of closures, all of which have different garbage collection behavior. How did closures evolve from a cool feature implemented only in esoteric languages like Scheme, to a feature that is taken for granted in all modern languages? Why are closures so popular?
+
+Closures are popular, I think, because they are the simplest way to bundle data together with operations that return or mutate that data. It's hard to beat the simplicity and purity of declaring a function and letting the interpreter capture all variables in the enclosing lexical scope of that function.
+
+How does this magic work? A closure is, essentially, a struct with two fields: one holding a reference to the procedure code, the other holding a reference to the environment captured when that function was created
+
+There is a downside to closures. Once closures are added, the language implementation becomes responsible for freeing the memory objects allocated. To safely refer back to variable arguments, the lifetime of the captured variable has to be extended, until there are no longer any references to it.
+
+This means that when we call `cons` with parameters `x` and `y`, it returns a closure that captures the values of `x` and `y`.
+
+{% highlight scheme %}
+(define (cdr z)
+  (z (lambda (x y) y)))
+{% endhighlight %}
